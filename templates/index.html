@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Daily Headlines</title>
+  <title>Sunrise Summary</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
@@ -12,7 +12,10 @@
 
   <header class="site-header">
     <div class="header-inner">
-      <h1 class="site-title">Daily Headlines</h1>
+      <h1 class="site-title-wrap">
+        <span class="site-title-icon">🌅</span>
+        <span class="site-title">Sunrise Summary</span>
+      </h1>
       <p class="site-date">{{ today }}</p>
     </div>
     <nav class="section-nav">
