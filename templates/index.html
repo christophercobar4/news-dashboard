@@ -12,20 +12,22 @@
 
   <header class="site-header">
     <div class="header-inner">
-      <h1 class="site-title-wrap">
-        <span class="site-title-icon">🌅</span>
-        <span class="site-title">Sunrise Summary</span>
-      </h1>
-      <p class="site-date">{{ today }}</p>
+      <div class="header-top">
+        <div class="site-title-wrap">
+          <span class="site-eyebrow">Your daily briefing</span>
+          <h1 class="site-title">Sunrise Summary</h1>
+        </div>
+        <p class="site-date">{{ today }}</p>
+      </div>
+      <nav class="section-nav">
+        <a href="#us">🇺🇸 US</a>
+        <a href="#international">🌍 World</a>
+        <a href="#positive">☀️ Positive</a>
+        {% for slug, label, icon in categories %}
+        <a href="#{{ slug }}">{{ icon }} {{ label }}</a>
+        {% endfor %}
+      </nav>
     </div>
-    <nav class="section-nav">
-      <a href="#us">🇺🇸 US</a>
-      <a href="#international">🌍 World</a>
-      <a href="#positive">☀️ Positive</a>
-      {% for slug, label, icon in categories %}
-      <a href="#{{ slug }}">{{ icon }} {{ label }}</a>
-      {% endfor %}
-    </nav>
   </header>
 
   <main class="container">
@@ -36,7 +38,7 @@
     </div>
     {% endif %}
 
-    {# Reusable card macro #}
+    {# ── Reusable card macro ── #}
     {% macro card(article, extra_class='') %}
     <li class="headline-card {{ extra_class }}">
       {% if article.image %}
@@ -47,7 +49,7 @@
       <div class="card-body">
         <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
         {% if article.summary %}
-        <p class="card-summary">{{ article.summary[:200] }}{% if article.summary|length > 200 %}…{% endif %}</p>
+        <p class="card-summary">{{ article.summary[:220] }}{% if article.summary|length > 220 %}…{% endif %}</p>
         {% endif %}
         <p class="card-meta">
           {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
@@ -62,82 +64,48 @@
     </li>
     {% endmacro %}
 
-    <!-- ===== US Headlines ===== -->
-    <section class="news-section" id="us">
+    {# ── Section macro ── #}
+    {% macro section(id, icon, title, articles, extra_class='', card_class='') %}
+    <section class="news-section {{ extra_class }}" id="{{ id }}">
       <div class="section-header">
-        <h2 class="section-title"><span class="section-icon">🇺🇸</span> Top US Headlines</h2>
-        {% if us_headlines %}<span class="section-count">{{ us_headlines|length }} stories</span>{% endif %}
-      </div>
-      {% if us_headlines %}
-      <ol class="headline-list">
-        {% for article in us_headlines %}{{ card(article) }}{% endfor %}
-      </ol>
-      {% else %}
-      <p class="empty-state">No US headlines available right now.</p>
-      {% endif %}
-    </section>
-
-    <!-- ===== International Headlines ===== -->
-    <section class="news-section" id="international">
-      <div class="section-header">
-        <h2 class="section-title"><span class="section-icon">🌍</span> Top International Headlines</h2>
-        {% if international_headlines %}<span class="section-count">{{ international_headlines|length }} stories</span>{% endif %}
-      </div>
-      {% if international_headlines %}
-      <ol class="headline-list">
-        {% for article in international_headlines %}{{ card(article) }}{% endfor %}
-      </ol>
-      {% else %}
-      <p class="empty-state">No international headlines available right now.</p>
-      {% endif %}
-    </section>
-
-    <!-- ===== Positive Headlines ===== -->
-    <section class="news-section" id="positive">
-      <div class="section-header">
-        <h2 class="section-title"><span class="section-icon">☀️</span> Top Positive US Headlines</h2>
-        {% if positive_headlines %}<span class="section-count">{{ positive_headlines|length }} stories</span>{% endif %}
-      </div>
-      {% if positive_headlines %}
-      <ol class="headline-list">
-        {% for article in positive_headlines %}{{ card(article, 'positive-card') }}{% endfor %}
-      </ol>
-      {% else %}
-      <p class="empty-state">No positive headlines available right now.</p>
-      {% endif %}
-    </section>
-
-    <!-- ===== Category Sections ===== -->
-    {% for slug, label, icon in categories %}
-    <section class="news-section category-section category-{{ slug }}" id="{{ slug }}">
-      <div class="section-header">
-        <h2 class="section-title"><span class="section-icon">{{ icon }}</span> {{ label }}</h2>
-        {% set articles = category_headlines.get(slug, []) %}
+        <h2 class="section-title"><span class="section-icon">{{ icon }}</span> {{ title }}</h2>
         {% if articles %}<span class="section-count">{{ articles|length }} stories</span>{% endif %}
       </div>
-      {% set articles = category_headlines.get(slug, []) %}
+      <div class="section-rule"></div>
       {% if articles %}
       <ol class="headline-list">
-        {% for article in articles %}{{ card(article, 'category-card category-card-' ~ slug) }}{% endfor %}
+        {% for article in articles %}{{ card(article, card_class) }}{% endfor %}
       </ol>
       {% else %}
-      <p class="empty-state">No {{ label | lower }} headlines available right now.</p>
+      <p class="empty-state">No {{ title | lower }} available right now.</p>
       {% endif %}
     </section>
+    {% endmacro %}
+
+    {{ section('us', '🇺🇸', 'Top US Headlines', us_headlines) }}
+    {{ section('international', '🌍', 'International Headlines', international_headlines) }}
+    {{ section('positive', '☀️', 'Positive US Headlines', positive_headlines, '', 'positive-card') }}
+
+    {% for slug, label, icon in categories %}
+    {{ section(slug, icon, label, category_headlines.get(slug, []),
+               'category-section category-' ~ slug,
+               'category-card category-card-' ~ slug) }}
     {% endfor %}
 
   </main>
 
   <footer class="site-footer">
-    <p class="footer-tomorrow">These stories refresh every day — check back tomorrow for a new edition.</p>
-    <div class="footer-inner">
-      <p class="footer-credit">
-        Headlines sourced from <a href="https://worldnewsapi.com/" target="_blank" rel="noopener">World News API</a>.
-        Refreshed daily.
-      </p>
-      <a class="bmc-btn" href="https://buymeacoffee.com/chrisco" target="_blank" rel="noopener">
-        ☕ Buy me a coffee
-      </a>
+    <div class="footer-inner-wrap">
+      <p class="footer-tomorrow">These stories refresh every morning — come back tomorrow for a new edition.</p>
+      <div class="footer-inner">
+        <p class="footer-credit">
+          Headlines sourced from <a href="https://worldnewsapi.com/" target="_blank" rel="noopener">World News API</a>.
+          Refreshed daily.
+        </p>
+        <a class="bmc-btn" href="https://buymeacoffee.com/chrisco" target="_blank" rel="noopener">
+          ☕ Buy me a coffee
+        </a>
+      </div>
     </div>
   </footer>
 
