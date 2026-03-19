@@ -26,26 +26,20 @@ TRUSTED_SOURCE_NAMES = {
     "npr.org": "NPR",
     "forbes.com": "Forbes",
     "nbcnews.com": "NBC News",
-    "sciencenews.org" : "Science News",
-    "newscientist.com" : "New Scientist",
-    "scientificamerican.com" : "Scientific American",
-    "quantamagazine.org" : "Quanta Magazine",
-    "the-scientist.com" : "The Scientist",
-    "bbc.com/news/science_and_environment" : "BBC Science",
-    "theguardian.com/science" : "The Guardian Science",
-    "npr.org/sections/science/" : "NPR Science",
-    "arstechnica.com/science/" : "Ars Technica Science",
-    "nasa.gov/news/" : "NASA News",
-    "statnews.com" : "STAT News",
-    "physicstoday.scitation.org" : "Physics Today",
-    "eurekalert.org" : "EurekAlert!",   
-    "phys.org" : "Phys.org",
 }
 
 TRUSTED_SOURCES = ",".join(
     f"https://www.{domain}" if domain not in ("apnews.com",) else f"https://{domain}"
     for domain in TRUSTED_SOURCE_NAMES
 )
+
+# Keyword fallbacks for categories the API rarely tags via its classifier.
+# Used when the category filter returns fewer than 5 articles.
+CATEGORY_KEYWORDS = {
+    "technology": "technology OR AI OR software OR cybersecurity OR Apple OR Google OR Microsoft",
+    "health": "health OR medicine OR FDA OR disease OR hospital OR mental health",
+    "science": "science OR research OR climate OR space OR NASA OR study",
+}
 
 # Categories to show, in display order
 CATEGORIES = [
@@ -115,7 +109,8 @@ def fetch_top_us_headlines():
 
     The /top-news endpoint does not support a news-sources filter, so we
     request a larger batch and pick the first article per cluster whose URL
-    belongs to one of the trusted domains.
+    belongs to one of the trusted domains. If fewer than 5 are found that
+    way, we top up via search-news with a 2-day window.
     """
     trusted_domains = {
         s.rstrip("/").split("//")[-1] for s in TRUSTED_SOURCES.split(",")
@@ -141,12 +136,41 @@ def fetch_top_us_headlines():
         if len(headlines) >= 5:
             break
 
+    # Top up to 5 via search-news if the cluster pass didn't yield enough
+    if len(headlines) < 5:
+        seen_urls = {h["url"] for h in headlines}
+        yesterday = str(date.today() - timedelta(days=1))
+        r2 = requests.get(
+            f"{BASE_URL}/search-news",
+            params={
+                "language": "en",
+                "news-sources": TRUSTED_SOURCES,
+                "source-countries": "us",
+                "sort": "publish-time",
+                "sort-direction": "DESC",
+                "earliest-publish-date": f"{yesterday} 00:00:00",
+                "number": 10,
+                "api-key": API_KEY,
+            },
+            timeout=10,
+        )
+        r2.raise_for_status()
+        for a in r2.json().get("news", []):
+            if a.get("url") not in seen_urls:
+                headlines.append(_article_shape(a))
+                seen_urls.add(a["url"])
+            if len(headlines) >= 5:
+                break
+
     return headlines
 
 
 def fetch_top_international_headlines():
-    """Fetch the top 5 international (non-US) headlines via Search News."""
-    today = str(date.today())
+    """Fetch the top 5 international (non-US) headlines via Search News.
+
+    Uses a 2-day rolling window so early-morning requests always find results.
+    """
+    yesterday = str(date.today() - timedelta(days=1))
     url = f"{BASE_URL}/search-news"
     params = {
         "language": "en",
@@ -154,8 +178,8 @@ def fetch_top_international_headlines():
         "not-source-countries": "us",
         "sort": "publish-time",
         "sort-direction": "DESC",
-        "earliest-publish-date": f"{today} 00:00:00",
-        "number": 5,
+        "earliest-publish-date": f"{yesterday} 00:00:00",
+        "number": 10,
         "api-key": API_KEY,
     }
     response = requests.get(url, params=params, timeout=10)
@@ -199,24 +223,52 @@ def fetch_positive_headlines():
 
 
 def fetch_category_headlines(category):
-    """Fetch the top 5 US headlines for a given category."""
-    today = str(date.today())
-    url = f"{BASE_URL}/search-news"
-    params = {
+    """Fetch the top 5 headlines for a given category from trusted sources.
+
+    Strategy:
+    1. Try the API's category tag with a 2-day window (fetches up to 10).
+    2. If still fewer than 5, fall back to a keyword text search so that
+       categories the API rarely tags (technology, health, science) always
+       have enough stories.
+    """
+    yesterday = str(date.today() - timedelta(days=1))
+    base_params = {
         "language": "en",
         "news-sources": TRUSTED_SOURCES,
-        "categories": category,
         "sort": "publish-time",
         "sort-direction": "DESC",
-        "earliest-publish-date": f"{today} 00:00:00",
-        "number": 5,
+        "earliest-publish-date": f"{yesterday} 00:00:00",
+        "number": 10,
         "api-key": API_KEY,
     }
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    data = response.json()
 
-    return [_article_shape(a) for a in data.get("news", [])[:5]]
+    # Pass 1 — category tag
+    r = requests.get(
+        f"{BASE_URL}/search-news",
+        params={**base_params, "categories": category},
+        timeout=10,
+    )
+    r.raise_for_status()
+    articles = r.json().get("news", [])
+    headlines = [_article_shape(a) for a in articles[:5]]
+
+    # Pass 2 — keyword fallback if needed
+    if len(headlines) < 5 and category in CATEGORY_KEYWORDS:
+        seen_urls = {h["url"] for h in headlines}
+        r2 = requests.get(
+            f"{BASE_URL}/search-news",
+            params={**base_params, "text": CATEGORY_KEYWORDS[category], "number": 20},
+            timeout=10,
+        )
+        r2.raise_for_status()
+        for a in r2.json().get("news", []):
+            if a.get("url") not in seen_urls:
+                headlines.append(_article_shape(a))
+                seen_urls.add(a["url"])
+            if len(headlines) >= 5:
+                break
+
+    return headlines
 
 
 def get_news():

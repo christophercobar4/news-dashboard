@@ -222,13 +222,6 @@ a { color: inherit; text-decoration: none; }
 .category-health      .section-title { color: var(--c-health); }
 .category-science     .section-title { color: var(--c-science); }
 
-.section-count {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
 
 .section-rule {
   height: 2px;
