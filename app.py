@@ -13,28 +13,51 @@ API_KEY = os.getenv("WORLD_NEWS_API_KEY")
 CACHE_FILE = "news_cache.json"
 BASE_URL = "https://api.worldnewsapi.com"
 
-# Trusted, unbiased news sources (via techworm.net/2021/12/unbiased-news-sources)
-# Maps canonical domain → display name
+# Trusted news sources — general + science/health/technology specialists.
+# Maps canonical domain → (display name, canonical URL for the API filter).
 TRUSTED_SOURCE_NAMES = {
-    "apnews.com": "Associated Press",
-    "reuters.com": "Reuters",
-    "bbc.com": "BBC News",
-    "wsj.com": "The Wall Street Journal",
-    "bloomberg.com": "Bloomberg",
-    "nytimes.com": "The New York Times",
-    "c-span.org": "C-SPAN",
-    "npr.org": "NPR",
-    "forbes.com": "Forbes",
-    "nbcnews.com": "NBC News",
+    # General / original ten
+    "apnews.com": ("Associated Press", "https://apnews.com"),
+    "reuters.com": ("Reuters", "https://www.reuters.com"),
+    "bbc.com": ("BBC News", "https://www.bbc.com"),
+    "wsj.com": ("The Wall Street Journal", "https://www.wsj.com"),
+    "bloomberg.com": ("Bloomberg", "https://www.bloomberg.com"),
+    "nytimes.com": ("The New York Times", "https://www.nytimes.com"),
+    "c-span.org": ("C-SPAN", "https://www.c-span.org"),
+    "npr.org": ("NPR", "https://www.npr.org"),
+    "forbes.com": ("Forbes", "https://www.forbes.com"),
+    "nbcnews.com": ("NBC News", "https://www.nbcnews.com"),
+    # Science
+    "scientificamerican.com": (
+        "Scientific American",
+        "https://www.scientificamerican.com",
+    ),
+    "newscientist.com": ("New Scientist", "https://www.newscientist.com"),
+    "quantamagazine.org": ("Quanta Magazine", "https://www.quantamagazine.org"),
+    "nature.com": ("Nature", "https://www.nature.com"),
+    "science.org": ("Science", "https://www.science.org"),
+    # Health & Medicine
+    "statnews.com": ("STAT News", "https://www.statnews.com"),
+    "webmd.com": ("WebMD", "https://www.webmd.com"),
+    "healthline.com": ("Healthline", "https://www.healthline.com"),
+    "medpagetoday.com": ("MedPage Today", "https://www.medpagetoday.com"),
+    "thelancet.com": ("The Lancet", "https://www.thelancet.com"),
+    # Technology
+    "wired.com": ("Wired", "https://www.wired.com"),
+    "arstechnica.com": ("Ars Technica", "https://arstechnica.com"),
+    "technologyreview.com": (
+        "MIT Technology Review",
+        "https://www.technologyreview.com",
+    ),
+    "theverge.com": ("The Verge", "https://www.theverge.com"),
+    "techcrunch.com": ("TechCrunch", "https://techcrunch.com"),
 }
 
-TRUSTED_SOURCES = ",".join(
-    f"https://www.{domain}" if domain not in ("apnews.com",) else f"https://{domain}"
-    for domain in TRUSTED_SOURCE_NAMES
-)
+# Comma-separated URL list used in API `news-sources` parameter
+TRUSTED_SOURCES = ",".join(url for _, url in TRUSTED_SOURCE_NAMES.values())
 
-# Keyword fallbacks for categories the API rarely tags via its classifier.
-# Used when the category filter returns fewer than 5 articles.
+# Keyword fallbacks — kept as a safety net for when the API's category
+# classifier still doesn't tag enough articles from these sources.
 CATEGORY_KEYWORDS = {
     "technology": "technology OR AI OR software OR cybersecurity OR Apple OR Google OR Microsoft",
     "health": "health OR medicine OR FDA OR disease OR hospital OR mental health",
@@ -78,10 +101,8 @@ def is_cache_fresh(cache):
 
 def _publisher_from_url(url):
     """Return a human-readable publisher name derived from the article URL."""
-    # Strip scheme and www., e.g. "https://www.nbcnews.com/..." -> "nbcnews.com"
-    domain = url.split("//")[-1].split("/")[0].lstrip("www.")
-    # Walk from most-specific to least-specific subdomain match
-    for key, name in TRUSTED_SOURCE_NAMES.items():
+    domain = url.split("//")[-1].split("/")[0].removeprefix("www.")
+    for key, (name, _) in TRUSTED_SOURCE_NAMES.items():
         if domain == key or domain.endswith("." + key):
             return name
     return domain or None
@@ -112,9 +133,7 @@ def fetch_top_us_headlines():
     belongs to one of the trusted domains. If fewer than 5 are found that
     way, we top up via search-news with a 2-day window.
     """
-    trusted_domains = {
-        s.rstrip("/").split("//")[-1] for s in TRUSTED_SOURCES.split(",")
-    }
+    trusted_domains = set(TRUSTED_SOURCE_NAMES.keys())
 
     url = f"{BASE_URL}/top-news"
     params = {
