@@ -36,31 +36,41 @@
     </div>
     {% endif %}
 
+    {# Reusable card macro #}
+    {% macro card(article, extra_class='') %}
+    <li class="headline-card {{ extra_class }}">
+      {% if article.image %}
+      <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-image-link">
+        <img src="{{ article.image }}" alt="" class="card-image" loading="lazy" />
+      </a>
+      {% endif %}
+      <div class="card-body">
+        <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
+        {% if article.summary %}
+        <p class="card-summary">{{ article.summary[:200] }}{% if article.summary|length > 200 %}…{% endif %}</p>
+        {% endif %}
+        <p class="card-meta">
+          {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
+          {% if article.source_country %}<span class="country-tag">{{ article.source_country | upper }}</span>{% endif %}
+          {% if article.sentiment is defined and article.sentiment %}
+          <span class="sentiment-badge">+{{ "%.2f"|format(article.sentiment) }}</span>
+          {% endif %}
+          {% if article.authors %}<span class="author">{{ article.authors | join(', ') }}</span>{% endif %}
+          <span class="date">{{ article.publish_date[:10] }}</span>
+        </p>
+      </div>
+    </li>
+    {% endmacro %}
+
     <!-- ===== US Headlines ===== -->
     <section class="news-section" id="us">
-      <h2 class="section-title"><span class="section-icon">🇺🇸</span> Top US Headlines</h2>
+      <div class="section-header">
+        <h2 class="section-title"><span class="section-icon">🇺🇸</span> Top US Headlines</h2>
+        {% if us_headlines %}<span class="section-count">{{ us_headlines|length }} stories</span>{% endif %}
+      </div>
       {% if us_headlines %}
       <ol class="headline-list">
-        {% for article in us_headlines %}
-        <li class="headline-card">
-          {% if article.image %}
-          <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-image-link">
-            <img src="{{ article.image }}" alt="" class="card-image" loading="lazy" />
-          </a>
-          {% endif %}
-          <div class="card-body">
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
-            {% if article.summary %}
-            <p class="card-summary">{{ article.summary[:160] }}{% if article.summary|length > 160 %}…{% endif %}</p>
-            {% endif %}
-            <p class="card-meta">
-              {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
-              {% if article.authors %}<span class="author">{{ article.authors | join(', ') }}</span>{% endif %}
-              <span class="date">{{ article.publish_date[:10] }}</span>
-            </p>
-          </div>
-        </li>
-        {% endfor %}
+        {% for article in us_headlines %}{{ card(article) }}{% endfor %}
       </ol>
       {% else %}
       <p class="empty-state">No US headlines available right now.</p>
@@ -69,30 +79,13 @@
 
     <!-- ===== International Headlines ===== -->
     <section class="news-section" id="international">
-      <h2 class="section-title"><span class="section-icon">🌍</span> Top International Headlines</h2>
+      <div class="section-header">
+        <h2 class="section-title"><span class="section-icon">🌍</span> Top International Headlines</h2>
+        {% if international_headlines %}<span class="section-count">{{ international_headlines|length }} stories</span>{% endif %}
+      </div>
       {% if international_headlines %}
       <ol class="headline-list">
-        {% for article in international_headlines %}
-        <li class="headline-card">
-          {% if article.image %}
-          <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-image-link">
-            <img src="{{ article.image }}" alt="" class="card-image" loading="lazy" />
-          </a>
-          {% endif %}
-          <div class="card-body">
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
-            {% if article.summary %}
-            <p class="card-summary">{{ article.summary[:160] }}{% if article.summary|length > 160 %}…{% endif %}</p>
-            {% endif %}
-            <p class="card-meta">
-              {% if article.source_country %}<span class="country-tag">{{ article.source_country | upper }}</span>{% endif %}
-              {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
-              {% if article.authors %}<span class="author">{{ article.authors | join(', ') }}</span>{% endif %}
-              <span class="date">{{ article.publish_date[:10] }}</span>
-            </p>
-          </div>
-        </li>
-        {% endfor %}
+        {% for article in international_headlines %}{{ card(article) }}{% endfor %}
       </ol>
       {% else %}
       <p class="empty-state">No international headlines available right now.</p>
@@ -101,32 +94,13 @@
 
     <!-- ===== Positive Headlines ===== -->
     <section class="news-section" id="positive">
-      <h2 class="section-title"><span class="section-icon">☀️</span> Top Positive US Headlines</h2>
+      <div class="section-header">
+        <h2 class="section-title"><span class="section-icon">☀️</span> Top Positive US Headlines</h2>
+        {% if positive_headlines %}<span class="section-count">{{ positive_headlines|length }} stories</span>{% endif %}
+      </div>
       {% if positive_headlines %}
       <ol class="headline-list">
-        {% for article in positive_headlines %}
-        <li class="headline-card positive-card">
-          {% if article.image %}
-          <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-image-link">
-            <img src="{{ article.image }}" alt="" class="card-image" loading="lazy" />
-          </a>
-          {% endif %}
-          <div class="card-body">
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
-            {% if article.summary %}
-            <p class="card-summary">{{ article.summary[:160] }}{% if article.summary|length > 160 %}…{% endif %}</p>
-            {% endif %}
-            <p class="card-meta">
-              {% if article.sentiment is defined %}
-              <span class="sentiment-badge">+{{ "%.2f"|format(article.sentiment) }} sentiment</span>
-              {% endif %}
-              {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
-              {% if article.authors %}<span class="author">{{ article.authors | join(', ') }}</span>{% endif %}
-              <span class="date">{{ article.publish_date[:10] }}</span>
-            </p>
-          </div>
-        </li>
-        {% endfor %}
+        {% for article in positive_headlines %}{{ card(article, 'positive-card') }}{% endfor %}
       </ol>
       {% else %}
       <p class="empty-state">No positive headlines available right now.</p>
@@ -136,30 +110,15 @@
     <!-- ===== Category Sections ===== -->
     {% for slug, label, icon in categories %}
     <section class="news-section category-section category-{{ slug }}" id="{{ slug }}">
-      <h2 class="section-title"><span class="section-icon">{{ icon }}</span> {{ label }}</h2>
+      <div class="section-header">
+        <h2 class="section-title"><span class="section-icon">{{ icon }}</span> {{ label }}</h2>
+        {% set articles = category_headlines.get(slug, []) %}
+        {% if articles %}<span class="section-count">{{ articles|length }} stories</span>{% endif %}
+      </div>
       {% set articles = category_headlines.get(slug, []) %}
       {% if articles %}
       <ol class="headline-list">
-        {% for article in articles %}
-        <li class="headline-card category-card category-card-{{ slug }}">
-          {% if article.image %}
-          <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-image-link">
-            <img src="{{ article.image }}" alt="" class="card-image" loading="lazy" />
-          </a>
-          {% endif %}
-          <div class="card-body">
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="card-title">{{ article.title }}</a>
-            {% if article.summary %}
-            <p class="card-summary">{{ article.summary[:160] }}{% if article.summary|length > 160 %}…{% endif %}</p>
-            {% endif %}
-            <p class="card-meta">
-              {% if article.publisher %}<span class="publisher">{{ article.publisher }}</span>{% endif %}
-              {% if article.authors %}<span class="author">{{ article.authors | join(', ') }}</span>{% endif %}
-              <span class="date">{{ article.publish_date[:10] }}</span>
-            </p>
-          </div>
-        </li>
-        {% endfor %}
+        {% for article in articles %}{{ card(article, 'category-card category-card-' ~ slug) }}{% endfor %}
       </ol>
       {% else %}
       <p class="empty-state">No {{ label | lower }} headlines available right now.</p>
@@ -174,6 +133,7 @@
     <div class="footer-inner">
       <p class="footer-credit">
         Headlines sourced from <a href="https://worldnewsapi.com/" target="_blank" rel="noopener">World News API</a>.
+        Refreshed daily.
       </p>
       <a class="bmc-btn" href="https://buymeacoffee.com/chrisco" target="_blank" rel="noopener">
         ☕ Buy me a coffee
